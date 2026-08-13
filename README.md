@@ -62,6 +62,18 @@ After applying, the screen tells you how many binds now share a key with
 another one, so you find out about a conflict there and then rather than in the
 middle of a fight.
 
+## Older Minecraft versions
+
+The preset *format* is version-agnostic. Bind names (`key.sprint`) and key names
+(`key.keyboard.left.control`) haven't changed since 1.13, so a preset captured
+on 26.2 is readable by any version, and applying it somewhere older simply finds
+fewer binds — the extra entries stay in the file rather than being dropped.
+
+The *jar* is not. It declares `"minecraft": "~26.2"` and builds against 26.2-only
+APIs, so Fabric Loader will refuse to load it on anything else. Running on an
+older version needs a separate build targeting that version; the shared folder
+then does the rest, because both builds read the same files.
+
 ## Undo
 
 Every apply snapshots your binds first. **Undo** puts them straight back, and

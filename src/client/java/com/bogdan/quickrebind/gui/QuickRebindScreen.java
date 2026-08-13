@@ -27,8 +27,10 @@ public class QuickRebindScreen extends Screen {
 	private static final int ROW_HEIGHT = 24;
 	private static final int LIST_TOP = 46;
 	private static final int LIST_WIDTH = 310;
-	private static final int APPLY_WIDTH = 208;
-	private static final int SMALL_WIDTH = 30;
+	// Narrower apply button buys enough room for the row actions to be words
+	// rather than cryptic abbreviations.
+	private static final int APPLY_WIDTH = 172;
+	private static final int SMALL_WIDTH = 42;
 	private static final int MAX_ROWS = 8;
 
 	private static final int WHITE = 0xFFFFFFFF;
@@ -134,7 +136,8 @@ public class QuickRebindScreen extends Screen {
 		addRenderableWidget(Button.builder(
 				Component.translatable("quickrebind.button.folder"), b -> openFolder())
 				.bounds(left + 78, bottomRow, 74, 20)
-				.tooltip(Tooltip.create(Component.literal(SharedPaths.presets().toString())))
+				.tooltip(Tooltip.create(Component.translatable("quickrebind.tip.folder",
+						SharedPaths.presets().toString())))
 				.build());
 
 		addRenderableWidget(Button.builder(
@@ -252,8 +255,13 @@ public class QuickRebindScreen extends Screen {
 
 	private void copyCode(Preset preset) {
 		minecraft.keyboardHandler.setClipboard(ShareCode.encode(preset));
+
+		// Name the file too: sending the .json is the other way to share, and
+		// otherwise you'd have to guess which one it is in the folder.
 		setStatus(Component.translatable("quickrebind.status.copied", preset.name),
-				Component.translatable("quickrebind.status.copied_hint"), GREEN);
+				Component.translatable("quickrebind.status.copied_hint",
+						preset.fileName == null ? "?" : preset.fileName),
+				GREEN);
 	}
 
 	private void pasteCode() {
