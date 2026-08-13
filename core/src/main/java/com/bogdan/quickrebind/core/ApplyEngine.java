@@ -27,6 +27,9 @@ public final class ApplyEngine {
 	}
 
 	public static ApplyResult apply(List<? extends BindHandle> binds, Preset preset, MissingBindPolicy policy) {
+		// Measured before anything moves, so the screen can report the clashes
+		// this apply actually introduced rather than the ones already there.
+		int conflictsBefore = conflicts(binds);
 		int rebound = 0;
 		int alreadyCorrect = 0;
 		int resetToDefault = 0;
@@ -73,15 +76,23 @@ public final class ApplyEngine {
 		}
 
 		return new ApplyResult(rebound, alreadyCorrect, resetToDefault, unreadable, notInstalled,
-				conflicts(binds));
+				conflicts(binds), conflictsBefore);
 	}
 
-	/** How many binds share a key with at least one other bind. */
+	/**
+	 * How many binds share a key with at least one other bind.
+	 *
+	 * <p>Debug binds are excluded. They are the F3+X combos, so
+	 * {@code key.debug.clearChat} sitting on D alongside {@code key.right} is
+	 * how vanilla ships and not something to warn anybody about — counting them
+	 * reports 28 clashes on an untouched profile, which trains you to ignore
+	 * the number entirely.
+	 */
 	public static int conflicts(List<? extends BindHandle> binds) {
 		Map<String, Integer> counts = new HashMap<>();
 
 		for (BindHandle bind : binds) {
-			if (!bind.isUnbound()) {
+			if (countable(bind)) {
 				counts.merge(bind.currentKey(), 1, (a, b) -> a + b);
 			}
 		}
@@ -89,7 +100,7 @@ public final class ApplyEngine {
 		int conflicted = 0;
 
 		for (BindHandle bind : binds) {
-			if (!bind.isUnbound()) {
+			if (countable(bind)) {
 				Integer count = counts.get(bind.currentKey());
 
 				if (count != null && count > 1) {
@@ -99,6 +110,10 @@ public final class ApplyEngine {
 		}
 
 		return conflicted;
+	}
+
+	private static boolean countable(BindHandle bind) {
+		return !bind.isUnbound() && !bind.id().startsWith("key.debug.");
 	}
 
 	/** Puts every bind back on its shipped default. */

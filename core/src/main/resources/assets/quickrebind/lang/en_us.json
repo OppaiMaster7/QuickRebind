@@ -13,7 +13,7 @@
 
 	"quickrebind.screen.title": "QuickRebind",
 	"quickrebind.screen.subtitle": "%s binds in this install",
-	"quickrebind.screen.subtitle_conflicts": "%s binds in this install · %s conflicting",
+	"quickrebind.screen.subtitle_conflicts": "%s binds in this install · %s sharing a key",
 	"quickrebind.screen.empty": "No presets yet.",
 	"quickrebind.screen.empty_hint": "Set your keys up how you like, then save them below.",
 	"quickrebind.screen.page": "Page %s of %s",
@@ -43,7 +43,7 @@
 
 	"quickrebind.status.applied": "Applied \"%s\" — %s binds changed",
 	"quickrebind.status.already_correct": "%s binds were already correct",
-	"quickrebind.status.conflicts": "Heads up: %s binds now share a key with another bind",
+	"quickrebind.status.conflicts": "Heads up: this put %s binds onto a key something else already uses",
 	"quickrebind.status.not_installed": "%s binds belong to mods that aren't here — kept in the file",
 	"quickrebind.status.unreadable": "%s entries name a key this version doesn't know",
 	"quickrebind.status.saved": "Saved \"%s\" with %s binds",

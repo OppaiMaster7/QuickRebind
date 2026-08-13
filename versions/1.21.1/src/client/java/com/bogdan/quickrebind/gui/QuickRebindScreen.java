@@ -188,13 +188,13 @@ public class QuickRebindScreen extends Screen {
 
 		setStatus(Component.translatable("quickrebind.status.applied", preset.name, result.changed()),
 				detailFor(result),
-				result.conflicts > 0 || result.unreadable > 0 ? YELLOW : GREEN);
+				result.newConflicts() > 0 || result.unreadable > 0 ? YELLOW : GREEN);
 		rebuildWidgets();
 	}
 
 	private Component detailFor(ApplyResult result) {
-		if (result.conflicts > 0) {
-			return Component.translatable("quickrebind.status.conflicts", result.conflicts);
+		if (result.newConflicts() > 0) {
+			return Component.translatable("quickrebind.status.conflicts", result.newConflicts());
 		}
 
 		if (result.notInstalled > 0) {
@@ -274,7 +274,7 @@ public class QuickRebindScreen extends Screen {
 
 			rebuildWidgets();
 		} catch (IllegalArgumentException e) {
-			// The message is a translation key — see ShareCode.decode.
+			// The message is a translation key â€” see ShareCode.decode.
 			setStatus(Component.translatable("quickrebind.status.import_failed"),
 					Component.translatable(e.getMessage()), RED);
 		}
@@ -347,7 +347,7 @@ public class QuickRebindScreen extends Screen {
 						minecraft.options.keyMappings.length, conflicts)
 				: Component.translatable("quickrebind.screen.subtitle",
 						minecraft.options.keyMappings.length);
-		graphics.drawCenteredString(font, subtitle, width / 2, 26, conflicts > 0 ? YELLOW : GREY);
+		graphics.drawCenteredString(font, subtitle, width / 2, 26, GREY);
 
 		if (presets.isEmpty()) {
 			graphics.drawCenteredString(font, Component.translatable("quickrebind.screen.empty"),

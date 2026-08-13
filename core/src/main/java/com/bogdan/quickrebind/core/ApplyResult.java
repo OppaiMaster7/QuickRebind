@@ -16,27 +16,39 @@ public final class ApplyResult {
 	public final int unreadable;
 	/** Entries for binds this install doesn't have; kept in the file. */
 	public final int notInstalled;
-	/** Binds now sharing a key with another bind. */
+	/** Binds sharing a key with another bind afterwards, debug combos excluded. */
 	public final int conflicts;
+	/** The same measure taken before the preset was applied. */
+	public final int conflictsBefore;
 
 	public ApplyResult(int rebound, int alreadyCorrect, int resetToDefault,
-			int unreadable, int notInstalled, int conflicts) {
+			int unreadable, int notInstalled, int conflicts, int conflictsBefore) {
 		this.rebound = rebound;
 		this.alreadyCorrect = alreadyCorrect;
 		this.resetToDefault = resetToDefault;
 		this.unreadable = unreadable;
 		this.notInstalled = notInstalled;
 		this.conflicts = conflicts;
+		this.conflictsBefore = conflictsBefore;
 	}
 
 	public int changed() {
 		return rebound + resetToDefault;
 	}
 
+	/**
+	 * Clashes this apply introduced. Only these are worth interrupting someone
+	 * about — an overlap they already had is not news.
+	 */
+	public int newConflicts() {
+		return Math.max(0, conflicts - conflictsBefore);
+	}
+
 	@Override
 	public String toString() {
 		return "rebound=" + rebound + " alreadyCorrect=" + alreadyCorrect
 				+ " resetToDefault=" + resetToDefault + " unreadable=" + unreadable
-				+ " notInstalled=" + notInstalled + " conflicts=" + conflicts;
+				+ " notInstalled=" + notInstalled + " conflicts=" + conflicts
+				+ " (was " + conflictsBefore + ")";
 	}
 }
