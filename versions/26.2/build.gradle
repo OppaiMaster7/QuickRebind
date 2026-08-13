@@ -32,6 +32,8 @@ loom {
 // nothing has to be bundled or remapped. It is plain Java 8 with only Gson, so
 // it compiles unchanged from 1.8.9 up.
 sourceSets.client.java.srcDir file("$rootDir/../../core/src/main/java")
+// Translations live there too — every version shows the same strings.
+sourceSets.main.resources.srcDir file("$rootDir/../../core/src/main/resources")
 
 dependencies {
 	// To change the versions see the gradle.properties file

@@ -1,0 +1,77 @@
+// Minecraft 1.21.1 is still obfuscated, which the Loom that builds 26.2 no
+// longer supports ("Cannot use Mojang mappings in a non-obfuscated
+// environment"). So this version pins a contemporary Loom, which in turn needs
+// Gradle 8 and JDK 21 — hence the separate wrapper in this directory.
+//
+// Loom's plugin marker is no longer published for 1.9.2, so it comes in as a
+// buildscript classpath dependency rather than through the plugins block.
+buildscript {
+	repositories {
+		maven { url = 'https://maven.fabricmc.net/' }
+		mavenCentral()
+		gradlePluginPortal()
+	}
+
+	dependencies {
+		classpath "net.fabricmc:fabric-loom:${loom_version}"
+	}
+}
+
+apply plugin: 'fabric-loom'
+
+version = project.mod_version
+group = project.maven_group
+
+base.archivesName = "quickrebind-${project.minecraft_version}"
+
+loom {
+	splitEnvironmentSourceSets()
+
+	mods {
+		"quickrebind" {
+			sourceSet sourceSets.main
+			sourceSet sourceSets.client
+		}
+	}
+}
+
+// See versions/26.2/build.gradle — same shared core, same reasoning.
+sourceSets.client.java.srcDir file("$rootDir/../../core/src/main/java")
+sourceSets.main.resources.srcDir file("$rootDir/../../core/src/main/resources")
+
+dependencies {
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	// 26.2's Loom defaults to Mojang mappings; older targets have to ask.
+	mappings loom.officialMojangMappings()
+	// modImplementation, not implementation: these are published against
+	// intermediary and Loom has to remap them first, or every Minecraft type
+	// they expose arrives as class_310 and friends.
+	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+}
+
+processResources {
+	def version = project.version
+	inputs.property "version", version
+
+	filesMatching("fabric.mod.json") {
+		expand "version": version
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	it.options.release = 21
+}
+
+java {
+	withSourcesJar()
+
+	sourceCompatibility = JavaVersion.VERSION_21
+	targetCompatibility = JavaVersion.VERSION_21
+}
+
+jar {
+	from("$rootDir/../../LICENSE") {
+		rename { "${it}_quickrebind" }
+	}
+}

@@ -62,17 +62,41 @@ After applying, the screen tells you how many binds now share a key with
 another one, so you find out about a conflict there and then rather than in the
 middle of a fight.
 
-## Older Minecraft versions
+## Minecraft versions
 
-The preset *format* is version-agnostic. Bind names (`key.sprint`) and key names
-(`key.keyboard.left.control`) haven't changed since 1.13, so a preset captured
-on 26.2 is readable by any version, and applying it somewhere older simply finds
-fewer binds — the extra entries stay in the file rather than being dropped.
+A preset made on one version works on any other. Bind names (`key.sprint`) and
+key names (`key.keyboard.left.control`) haven't changed since 1.13, so applying
+a 26.2 preset on something older just finds fewer binds — the extra entries stay
+in the file rather than being dropped. Install the matching build on each
+version and they all read the same folder.
 
-The *jar* is not. It declares `"minecraft": "~26.2"` and builds against 26.2-only
-APIs, so Fabric Loader will refuse to load it on anything else. Running on an
-older version needs a separate build targeting that version; the shared folder
-then does the rest, because both builds read the same files.
+The jar itself is per-version, because Fabric mods always are.
+
+| Minecraft | Status | Loom | Gradle | JDK |
+|---|---|---|---|---|
+| 26.2   | built | 1.17-SNAPSHOT | 9.5.1 | 25 |
+| 1.21.1 | built | 1.9.2 | 8.11.1 | 21 |
+| 1.20.1 | planned | | | 17 |
+| 1.19.2 | planned | | | 17 |
+| 1.8.9  | planned, see below | Legacy Fabric | | 8 |
+
+The toolchain differs per version and isn't a free choice. 26.2 ships
+unobfuscated, and the Loom that builds it refuses Mojang mappings outright
+("Cannot use Mojang mappings in a non-obfuscated environment"), so anything
+still obfuscated needs an older Loom — which needs an older Gradle, which needs
+an older JDK. Hence a wrapper per version directory rather than one at the root.
+
+### 1.8.9 is a different problem
+
+Everything above holds from 1.13 on. Before that, Minecraft stored binds as
+LWJGL2 integer keycodes rather than `key.keyboard.*` names, so that build needs
+a translation layer on top of the usual port. Mojang's own `OptionsKeyLwjgl3Fix`
+and `OptionsKeyTranslationFix` datafixers hold the authoritative mapping and are
+the place to lift it from. Legacy Fabric (`repo.legacyfabric.net`) supplies the
+loader, since official Fabric only goes back to 1.14.
+
+Core is written to plain Java 8 with Gson as its only dependency specifically so
+that build can use it unchanged.
 
 ## Undo
 
@@ -113,13 +137,20 @@ folder layout, the share codes and the apply rules come along for free.
 
 ## Building
 
-Needs JDK 25 for the 26.2 build.
+Each version builds with the wrapper in its own directory, and needs the JDK
+from the table above:
 
 ```bash
+# 26.2 — JDK 25
 ./gradlew -p versions/26.2 build
+
+# 1.21.1 — JDK 21
+versions/1.21.1/gradlew -p versions/1.21.1 build \
+  -Dorg.gradle.java.home=/path/to/jdk-21
 ```
 
-The jar lands in `versions/26.2/build/libs/`.
+Drop the `-Dorg.gradle.java.home` if `JAVA_HOME` already points at the right
+JDK. Jars land in `versions/<version>/build/libs/`.
 
 ## License
 
