@@ -43,6 +43,14 @@ public class QuickRebindClient implements ClientModInitializer {
 		JsonStore.save(SharedPaths.config(), config);
 	}
 
+	/**
+	 * Whether a key press on some open screen is our open key. Needed because
+	 * keybinds are only dispatched to KeyMapping when no screen is up.
+	 */
+	public static boolean openKeyMatches(net.minecraft.client.input.KeyEvent event) {
+		return openScreenKey != null && !openScreenKey.isUnbound() && openScreenKey.matches(event);
+	}
+
 	/** The Minecraft version presets are stamped with, purely for display. */
 	public static String gameVersion() {
 		return FabricLoader.getInstance().getModContainer("minecraft")

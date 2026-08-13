@@ -134,6 +134,9 @@ public class QuickRebindSettingsScreen extends Screen {
 
 	@Override
 	public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+		// 1.20.1's Screen.render does not draw a background (1.21 added that),
+		// so without this the screen is see-through over whatever opened it.
+		renderBackground(graphics);
 		super.render(graphics, mouseX, mouseY, partialTick);
 		graphics.drawCenteredString(font, title, width / 2, 16, 0xFFFFFFFF);
 	}
