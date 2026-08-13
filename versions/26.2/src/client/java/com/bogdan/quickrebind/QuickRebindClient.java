@@ -5,13 +5,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.bogdan.quickrebind.config.QuickRebindConfig;
+import com.bogdan.quickrebind.core.JsonStore;
+import com.bogdan.quickrebind.core.Preset;
+import com.bogdan.quickrebind.core.PresetStore;
+import com.bogdan.quickrebind.core.QuickRebindLog;
+import com.bogdan.quickrebind.core.SharedPaths;
 import com.bogdan.quickrebind.gui.MenuButtons;
 import com.bogdan.quickrebind.gui.QuickRebindScreen;
-import com.bogdan.quickrebind.keys.KeybindService;
-import com.bogdan.quickrebind.preset.Preset;
-import com.bogdan.quickrebind.preset.PresetStore;
-import com.bogdan.quickrebind.storage.JsonStore;
-import com.bogdan.quickrebind.storage.SharedPaths;
+import com.bogdan.quickrebind.platform.GameBinds;
 
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
@@ -19,6 +20,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.KeyMapping;
+import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
 
 public class QuickRebindClient implements ClientModInitializer {
@@ -50,7 +52,10 @@ public class QuickRebindClient implements ClientModInitializer {
 
 	@Override
 	public void onInitializeClient() {
-		config = JsonStore.load(SharedPaths.config(), QuickRebindConfig.class, QuickRebindConfig::new);
+		// Core can't depend on slf4j — it also has to build for 1.8.9.
+		QuickRebindLog.wire(LOGGER::info, LOGGER::error);
+
+		config = JsonStore.loadOrDefault(SharedPaths.config(), QuickRebindConfig.class, new QuickRebindConfig());
 		config.sanitise();
 
 		// F8 is free in vanilla, and stays clear of the F6 the playtime mod uses.
@@ -76,11 +81,11 @@ public class QuickRebindClient implements ClientModInitializer {
 	 * PvP preset once and the binds are right every time it boots.
 	 */
 	private void autoApply() {
-		if (config.autoApplyPresetId.isBlank()) {
+		if (config.autoApplyPresetId.isEmpty()) {
 			return;
 		}
 
-		Preset preset = PresetStore.byId(config.autoApplyPresetId).orElse(null);
+		Preset preset = PresetStore.byId(config.autoApplyPresetId);
 
 		if (preset == null) {
 			LOGGER.warn("Auto-apply preset {} is gone, clearing the setting", config.autoApplyPresetId);
@@ -89,6 +94,6 @@ public class QuickRebindClient implements ClientModInitializer {
 			return;
 		}
 
-		KeybindService.apply(net.minecraft.client.Minecraft.getInstance(), preset, config.missingBindPolicy);
+		GameBinds.apply(Minecraft.getInstance(), preset, config.missingBindPolicy);
 	}
 }

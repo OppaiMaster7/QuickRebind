@@ -2,7 +2,7 @@ package com.bogdan.quickrebind.gui;
 
 import java.util.function.Consumer;
 
-import com.bogdan.quickrebind.preset.PresetStore;
+import com.bogdan.quickrebind.core.PresetStore;
 
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;

@@ -6,13 +6,13 @@ import java.util.List;
 
 import com.bogdan.quickrebind.QuickRebindClient;
 import com.bogdan.quickrebind.config.QuickRebindConfig;
-import com.bogdan.quickrebind.keys.ApplyResult;
-import com.bogdan.quickrebind.keys.KeybindService;
-import com.bogdan.quickrebind.keys.MissingBindPolicy;
-import com.bogdan.quickrebind.preset.Preset;
-import com.bogdan.quickrebind.preset.PresetStore;
-import com.bogdan.quickrebind.preset.ShareCode;
-import com.bogdan.quickrebind.storage.SharedPaths;
+import com.bogdan.quickrebind.core.ApplyResult;
+import com.bogdan.quickrebind.core.MissingBindPolicy;
+import com.bogdan.quickrebind.core.Preset;
+import com.bogdan.quickrebind.core.PresetStore;
+import com.bogdan.quickrebind.core.ShareCode;
+import com.bogdan.quickrebind.core.SharedPaths;
+import com.bogdan.quickrebind.platform.GameBinds;
 
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
@@ -130,7 +130,7 @@ public class QuickRebindScreen extends Screen {
 				.bounds(left, bottomRow, 74, 20)
 				.tooltip(Tooltip.create(Component.translatable("quickrebind.tip.undo")))
 				.build();
-		undo.active = KeybindService.undoSnapshot() != null;
+		undo.active = GameBinds.undoSnapshot() != null;
 		addRenderableWidget(undo);
 
 		addRenderableWidget(Button.builder(
@@ -187,29 +187,29 @@ public class QuickRebindScreen extends Screen {
 	}
 
 	private void applyNow(Preset preset) {
-		ApplyResult result = KeybindService.apply(
+		ApplyResult result = GameBinds.apply(
 				minecraft, preset, QuickRebindClient.config().missingBindPolicy);
 
 		setStatus(Component.translatable("quickrebind.status.applied", preset.name, result.changed()),
 				detailFor(result),
-				result.conflicts() > 0 || result.unreadable() > 0 ? YELLOW : GREEN);
+				result.conflicts > 0 || result.unreadable > 0 ? YELLOW : GREEN);
 		rebuildWidgets();
 	}
 
 	private Component detailFor(ApplyResult result) {
-		if (result.conflicts() > 0) {
-			return Component.translatable("quickrebind.status.conflicts", result.conflicts());
+		if (result.conflicts > 0) {
+			return Component.translatable("quickrebind.status.conflicts", result.conflicts);
 		}
 
-		if (result.notInstalled() > 0) {
-			return Component.translatable("quickrebind.status.not_installed", result.notInstalled());
+		if (result.notInstalled > 0) {
+			return Component.translatable("quickrebind.status.not_installed", result.notInstalled);
 		}
 
-		if (result.unreadable() > 0) {
-			return Component.translatable("quickrebind.status.unreadable", result.unreadable());
+		if (result.unreadable > 0) {
+			return Component.translatable("quickrebind.status.unreadable", result.unreadable);
 		}
 
-		return Component.translatable("quickrebind.status.already_correct", result.alreadyCorrect());
+		return Component.translatable("quickrebind.status.already_correct", result.alreadyCorrect);
 	}
 
 	private void saveCurrent() {
@@ -221,7 +221,7 @@ public class QuickRebindScreen extends Screen {
 				Component.translatable("quickrebind.prompt.save.message"),
 				suggested,
 				name -> {
-					Preset preset = Preset.of(name, KeybindService.capture(minecraft.options),
+					Preset preset = Preset.of(name, GameBinds.capture(minecraft.options),
 							QuickRebindClient.gameVersion());
 
 					if (PresetStore.save(preset)) {
@@ -304,7 +304,7 @@ public class QuickRebindScreen extends Screen {
 	}
 
 	private void undo() {
-		Preset snapshot = KeybindService.undoSnapshot();
+		Preset snapshot = GameBinds.undoSnapshot();
 
 		if (snapshot == null) {
 			return;
@@ -312,7 +312,7 @@ public class QuickRebindScreen extends Screen {
 
 		// Deliberately LEAVE: the snapshot is a full capture of this install, so
 		// there is nothing it could sensibly reset.
-		ApplyResult result = KeybindService.apply(minecraft, snapshot, MissingBindPolicy.LEAVE);
+		ApplyResult result = GameBinds.apply(minecraft, snapshot, MissingBindPolicy.LEAVE);
 		setStatus(Component.translatable("quickrebind.status.undone", result.changed()),
 				Component.translatable("quickrebind.status.undone_hint"), GREEN);
 		rebuildWidgets();
@@ -343,7 +343,7 @@ public class QuickRebindScreen extends Screen {
 
 		graphics.centeredText(font, title, width / 2, 12, WHITE);
 
-		int conflicts = KeybindService.conflicts(minecraft.options);
+		int conflicts = GameBinds.conflicts(minecraft.options);
 		Component subtitle = conflicts > 0
 				? Component.translatable("quickrebind.screen.subtitle_conflicts",
 						minecraft.options.keyMappings.length, conflicts)

@@ -90,15 +90,36 @@ Settings cover the missing-bind policy, whether to confirm before applying,
 which of those two buttons to show, and **Apply on launch** — pick a preset and
 that instance sets itself up correctly every time it boots.
 
-## Building
+## Layout
 
-Needs JDK 25.
+The mod is split so that one copy of the logic serves every Minecraft version:
 
-```bash
-./gradlew build
+```
+core/                version-independent: presets, storage, share codes,
+                     and the apply rules. Plain Java 8, Gson its only
+                     dependency, no Minecraft imports at all.
+versions/26.2/       the Fabric mod for one Minecraft version: a BindHandle
+                     adapter over that version's keybind class, plus its GUI.
 ```
 
-The jar lands in `build/libs/`.
+Each version is its own self-contained Gradle build that pulls `core` in as a
+source directory. They're separate builds rather than subprojects because Loom
+can't have two different versions of itself in one build, and older Minecraft
+needs an older Loom.
+
+Adding a version means writing two small things — an adapter implementing
+`BindHandle`, and the screens in that version's GUI API. The preset format, the
+folder layout, the share codes and the apply rules come along for free.
+
+## Building
+
+Needs JDK 25 for the 26.2 build.
+
+```bash
+./gradlew -p versions/26.2 build
+```
+
+The jar lands in `versions/26.2/build/libs/`.
 
 ## License
 

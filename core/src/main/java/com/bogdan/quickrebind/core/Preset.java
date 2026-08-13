@@ -1,4 +1,4 @@
-package com.bogdan.quickrebind.preset;
+package com.bogdan.quickrebind.core;
 
 import java.util.Map;
 import java.util.TreeMap;
@@ -7,12 +7,13 @@ import java.util.UUID;
 /**
  * One saved set of keybinds.
  *
- * <p>Binds are stored as {@code translation key -> bound key}, e.g.
+ * <p>Binds are stored as {@code identifier -> bound key}, e.g.
  * {@code "key.sprint" -> "key.keyboard.left.control"}. Keying off the
- * translation key rather than a slot number is what lets a preset survive the
- * trip between a vanilla install and a modpack: a bind the current install has
- * never heard of (say {@code key.jei.showRecipe}) is simply left in the file
- * untouched, ready for the next time you launch the pack that owns it.
+ * identifier rather than a slot number is what lets a preset survive the trip
+ * between a vanilla install and a modpack, or between 1.8.9 and 26.2: a bind
+ * the current install has never heard of (say {@code key.jei.showRecipe}, or a
+ * key that only exists on newer versions) is simply left in the file untouched,
+ * ready for the next time you launch something that owns it.
  */
 public class Preset {
 	/** Bumped only if the on-disk shape changes in a way old readers can't handle. */
@@ -25,7 +26,7 @@ public class Preset {
 	public long updatedAt;
 	/** Purely informational — which Minecraft the preset was captured on. */
 	public String gameVersion;
-	public Map<String, String> binds = new TreeMap<>();
+	public Map<String, String> binds = new TreeMap<String, String>();
 
 	/** File this preset was read from, so a rename can clean up after itself. Not serialised. */
 	public transient String fileName;
@@ -40,21 +41,21 @@ public class Preset {
 		preset.createdAt = System.currentTimeMillis();
 		preset.updatedAt = preset.createdAt;
 		preset.gameVersion = gameVersion;
-		preset.binds = new TreeMap<>(binds);
+		preset.binds = new TreeMap<String, String>(binds);
 		return preset;
 	}
 
 	/** Fills in anything a hand-edited or foreign file left out. */
 	public Preset sanitise() {
-		if (id == null || id.isBlank()) {
+		if (isBlank(id)) {
 			id = UUID.randomUUID().toString();
 		}
 
-		if (name == null || name.isBlank()) {
+		if (isBlank(name)) {
 			name = "Unnamed";
 		}
 
-		name = name.strip();
+		name = name.trim();
 
 		if (name.length() > PresetStore.MAX_NAME_LENGTH) {
 			name = name.substring(0, PresetStore.MAX_NAME_LENGTH);
@@ -70,14 +71,14 @@ public class Preset {
 
 		// Gson hands back a LinkedTreeMap; re-wrap so writes stay sorted and so
 		// null keys or values from a mangled file can't reach the apply code.
-		Map<String, String> cleaned = new TreeMap<>();
+		Map<String, String> cleaned = new TreeMap<String, String>();
 
 		if (binds != null) {
-			binds.forEach((key, value) -> {
-				if (key != null && !key.isBlank() && value != null && !value.isBlank()) {
-					cleaned.put(key, value);
+			for (Map.Entry<String, String> entry : binds.entrySet()) {
+				if (!isBlank(entry.getKey()) && !isBlank(entry.getValue())) {
+					cleaned.put(entry.getKey(), entry.getValue());
 				}
-			});
+			}
 		}
 
 		binds = cleaned;
@@ -88,14 +89,7 @@ public class Preset {
 		return binds == null ? 0 : binds.size();
 	}
 
-	public Preset copyForImport() {
-		Preset copy = new Preset();
-		copy.id = UUID.randomUUID().toString();
-		copy.name = name;
-		copy.createdAt = System.currentTimeMillis();
-		copy.updatedAt = copy.createdAt;
-		copy.gameVersion = gameVersion;
-		copy.binds = new TreeMap<>(binds);
-		return copy;
+	static boolean isBlank(String value) {
+		return value == null || value.trim().isEmpty();
 	}
 }

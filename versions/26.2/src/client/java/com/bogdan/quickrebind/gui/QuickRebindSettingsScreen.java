@@ -7,9 +7,9 @@ import java.util.function.Function;
 
 import com.bogdan.quickrebind.QuickRebindClient;
 import com.bogdan.quickrebind.config.QuickRebindConfig;
-import com.bogdan.quickrebind.keys.MissingBindPolicy;
-import com.bogdan.quickrebind.preset.Preset;
-import com.bogdan.quickrebind.preset.PresetStore;
+import com.bogdan.quickrebind.core.MissingBindPolicy;
+import com.bogdan.quickrebind.core.Preset;
+import com.bogdan.quickrebind.core.PresetStore;
 
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
@@ -34,7 +34,7 @@ public class QuickRebindSettingsScreen extends Screen {
 		QuickRebindConfig config = QuickRebindClient.config();
 
 		option(0, "quickrebind.option.missing_policy", config.missingBindPolicy,
-				List.of(MissingBindPolicy.values()), MissingBindPolicy::label,
+				List.of(MissingBindPolicy.values()), QuickRebindSettingsScreen::policyLabel,
 				value -> config.missingBindPolicy = value,
 				"quickrebind.option.missing_policy.tip");
 
@@ -74,6 +74,13 @@ public class QuickRebindSettingsScreen extends Screen {
 						: Component.literal(nameOf(presets, id)),
 				value -> config.autoApplyPresetId = value,
 				"quickrebind.option.auto_apply.tip");
+	}
+
+	/** Core has no access to Component, so the display text lives on this side. */
+	private static Component policyLabel(MissingBindPolicy policy) {
+		return Component.translatable(policy == MissingBindPolicy.LEAVE
+				? "quickrebind.policy.leave"
+				: "quickrebind.policy.reset");
 	}
 
 	private static String nameOf(List<Preset> presets, String id) {

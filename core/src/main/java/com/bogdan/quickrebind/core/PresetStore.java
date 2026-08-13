@@ -1,20 +1,15 @@
-package com.bogdan.quickrebind.preset;
+package com.bogdan.quickrebind.core;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
-import java.util.stream.Stream;
-
-import com.bogdan.quickrebind.QuickRebindClient;
-import com.bogdan.quickrebind.storage.JsonStore;
-import com.bogdan.quickrebind.storage.SharedPaths;
 
 /**
  * Reads and writes preset files in the shared folder.
@@ -27,7 +22,7 @@ public final class PresetStore {
 	public static final int MAX_NAME_LENGTH = 32;
 
 	private static final String EXTENSION = ".json";
-	private static final int MAX_FILE_NAME_ATTEMPTS = 200;
+	private static final int MAX_ATTEMPTS = 200;
 
 	private PresetStore() {
 	}
@@ -35,40 +30,57 @@ public final class PresetStore {
 	/** Every readable preset, sorted by name. Unreadable files are logged and skipped. */
 	public static List<Preset> list() {
 		Path dir = SharedPaths.presets();
+		List<Preset> presets = new ArrayList<Preset>();
 
 		if (!Files.isDirectory(dir)) {
-			return new ArrayList<>();
+			return presets;
 		}
 
-		List<Preset> presets = new ArrayList<>();
+		List<Path> files = new ArrayList<Path>();
 
-		try (Stream<Path> files = Files.list(dir)) {
-			files.filter(path -> path.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(EXTENSION))
-					.sorted()
-					.forEach(path -> {
-						Preset preset = JsonStore.loadOrNull(path, Preset.class);
-
-						if (preset != null) {
-							preset.sanitise();
-							preset.fileName = path.getFileName().toString();
-							presets.add(preset);
-						}
-					});
+		try {
+			for (Path path : Files.newDirectoryStream(dir, "*" + EXTENSION)) {
+				files.add(path);
+			}
 		} catch (IOException e) {
-			QuickRebindClient.LOGGER.error("Could not list presets in {}", dir, e);
+			QuickRebindLog.error("Could not list presets in " + dir, e);
+			return presets;
 		}
 
-		presets.sort(Comparator.comparing((Preset p) -> p.name.toLowerCase(Locale.ROOT))
-				.thenComparing(p -> p.id));
+		Collections.sort(files);
+
+		for (Path path : files) {
+			Preset preset = JsonStore.loadOrNull(path, Preset.class);
+
+			if (preset != null) {
+				preset.sanitise();
+				preset.fileName = path.getFileName().toString();
+				presets.add(preset);
+			}
+		}
+
+		Collections.sort(presets, new Comparator<Preset>() {
+			@Override
+			public int compare(Preset a, Preset b) {
+				int byName = a.name.toLowerCase(Locale.ROOT).compareTo(b.name.toLowerCase(Locale.ROOT));
+				return byName != 0 ? byName : a.id.compareTo(b.id);
+			}
+		});
 		return presets;
 	}
 
-	public static Optional<Preset> byId(String id) {
-		if (id == null || id.isBlank()) {
-			return Optional.empty();
+	public static Preset byId(String id) {
+		if (Preset.isBlank(id)) {
+			return null;
 		}
 
-		return list().stream().filter(preset -> id.equals(preset.id)).findFirst();
+		for (Preset preset : list()) {
+			if (id.equals(preset.id)) {
+				return preset;
+			}
+		}
+
+		return null;
 	}
 
 	/** Writes the preset, moving its file if the name changed. */
@@ -96,21 +108,21 @@ public final class PresetStore {
 		return preset.fileName != null && deleteFile(preset.fileName);
 	}
 
-	/** Makes a name that no other preset is already using, for the "Copy" / import cases. */
+	/** Makes a name no other preset is already using, for the import and copy cases. */
 	public static String uniqueName(String wanted, List<Preset> existing) {
-		String trimmedInput = wanted == null || wanted.isBlank() ? "Preset" : wanted.strip();
-		final String base = trimmedInput.length() > MAX_NAME_LENGTH
-				? trimmedInput.substring(0, MAX_NAME_LENGTH).strip()
-				: trimmedInput;
+		String input = Preset.isBlank(wanted) ? "Preset" : wanted.trim();
+		String base = input.length() > MAX_NAME_LENGTH
+				? input.substring(0, MAX_NAME_LENGTH).trim()
+				: input;
 
 		if (isFree(base, existing)) {
 			return base;
 		}
 
-		for (int suffix = 2; suffix < MAX_FILE_NAME_ATTEMPTS; suffix++) {
+		for (int suffix = 2; suffix < MAX_ATTEMPTS; suffix++) {
 			String tail = " " + suffix;
 			String head = base.length() + tail.length() > MAX_NAME_LENGTH
-					? base.substring(0, MAX_NAME_LENGTH - tail.length()).strip()
+					? base.substring(0, MAX_NAME_LENGTH - tail.length()).trim()
 					: base;
 			String candidate = head + tail;
 
@@ -123,7 +135,13 @@ public final class PresetStore {
 	}
 
 	private static boolean isFree(String name, List<Preset> existing) {
-		return existing.stream().noneMatch(preset -> preset.name.equalsIgnoreCase(name));
+		for (Preset preset : existing) {
+			if (preset.name.equalsIgnoreCase(name)) {
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	// ----------------------------------------------------------------- naming
@@ -134,8 +152,7 @@ public final class PresetStore {
 		String candidate = base + EXTENSION;
 
 		// Keep our own file if we already hold the name; otherwise step aside.
-		for (int suffix = 2; isTakenByOther(owners, candidate, preset.id)
-				&& suffix < MAX_FILE_NAME_ATTEMPTS; suffix++) {
+		for (int suffix = 2; isTakenByOther(owners, candidate, preset.id) && suffix < MAX_ATTEMPTS; suffix++) {
 			candidate = base + "-" + suffix + EXTENSION;
 		}
 
@@ -151,7 +168,7 @@ public final class PresetStore {
 
 	/** file name -> preset id, for collision checks. */
 	private static Map<String, String> owners() {
-		Map<String, String> owners = new HashMap<>();
+		Map<String, String> owners = new HashMap<String, String>();
 
 		for (Preset preset : list()) {
 			if (preset.fileName != null) {
@@ -168,16 +185,16 @@ public final class PresetStore {
 		boolean lastWasDash = false;
 
 		for (char c : name.toLowerCase(Locale.ROOT).toCharArray()) {
-			if (c >= 'a' && c <= 'z' || c >= '0' && c <= '9') {
+			if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')) {
 				out.append(c);
 				lastWasDash = false;
-			} else if (!lastWasDash && !out.isEmpty()) {
+			} else if (!lastWasDash && out.length() > 0) {
 				out.append('-');
 				lastWasDash = true;
 			}
 		}
 
-		while (!out.isEmpty() && out.charAt(out.length() - 1) == '-') {
+		while (out.length() > 0 && out.charAt(out.length() - 1) == '-') {
 			out.setLength(out.length() - 1);
 		}
 
@@ -185,14 +202,14 @@ public final class PresetStore {
 			out.setLength(MAX_NAME_LENGTH);
 		}
 
-		return out.isEmpty() ? "preset" : out.toString();
+		return out.length() == 0 ? "preset" : out.toString();
 	}
 
 	private static boolean deleteFile(String fileName) {
 		try {
 			return Files.deleteIfExists(SharedPaths.presets().resolve(fileName));
 		} catch (IOException e) {
-			QuickRebindClient.LOGGER.error("Could not delete {}", fileName, e);
+			QuickRebindLog.error("Could not delete " + fileName, e);
 			return false;
 		}
 	}

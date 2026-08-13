@@ -1,5 +1,6 @@
-package com.bogdan.quickrebind.preset;
+package com.bogdan.quickrebind.core;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -41,13 +42,17 @@ public final class ShareCode {
 		payload.mc = preset.gameVersion;
 		payload.binds = preset.binds;
 
-		byte[] json = com.bogdan.quickrebind.storage.JsonStore.COMPACT.toJson(payload)
-				.getBytes(StandardCharsets.UTF_8);
-
+		byte[] json = JsonStore.COMPACT.toJson(payload).getBytes(StandardCharsets.UTF_8);
 		ByteArrayOutputStream compressed = new ByteArrayOutputStream();
 
-		try (GZIPOutputStream gzip = new GZIPOutputStream(compressed)) {
-			gzip.write(json);
+		try {
+			GZIPOutputStream gzip = new GZIPOutputStream(compressed);
+
+			try {
+				gzip.write(json);
+			} finally {
+				gzip.close();
+			}
 		} catch (IOException e) {
 			// Writing to memory; nothing here can actually fail.
 			throw new IllegalStateException("Could not encode preset", e);
@@ -59,11 +64,11 @@ public final class ShareCode {
 	/**
 	 * Parses a share code.
 	 *
-	 * @throws IllegalArgumentException if the text isn't a QuickRebind code, with
-	 *         a message key suitable for showing to the user
+	 * @throws IllegalArgumentException if the text isn't a QuickRebind code. The
+	 *         message is a translation key, so the GUI can show it directly.
 	 */
 	public static Preset decode(String text) {
-		if (text == null || text.isBlank()) {
+		if (Preset.isBlank(text)) {
 			throw new IllegalArgumentException("quickrebind.import.error.empty");
 		}
 
@@ -84,8 +89,14 @@ public final class ShareCode {
 
 		String json;
 
-		try (GZIPInputStream gzip = new GZIPInputStream(new java.io.ByteArrayInputStream(compressed))) {
-			json = new String(readAtMost(gzip), StandardCharsets.UTF_8);
+		try {
+			GZIPInputStream gzip = new GZIPInputStream(new ByteArrayInputStream(compressed));
+
+			try {
+				json = new String(readAtMost(gzip), StandardCharsets.UTF_8);
+			} finally {
+				gzip.close();
+			}
 		} catch (IOException e) {
 			throw new IllegalArgumentException("quickrebind.import.error.malformed");
 		}
@@ -93,7 +104,7 @@ public final class ShareCode {
 		Payload payload;
 
 		try {
-			payload = com.bogdan.quickrebind.storage.JsonStore.COMPACT.fromJson(json, Payload.class);
+			payload = JsonStore.COMPACT.fromJson(json, Payload.class);
 		} catch (Exception e) {
 			throw new IllegalArgumentException("quickrebind.import.error.malformed");
 		}
@@ -103,8 +114,8 @@ public final class ShareCode {
 		}
 
 		Preset preset = Preset.of(
-				payload.name == null || payload.name.isBlank() ? "Imported" : payload.name,
-				new TreeMap<>(payload.binds),
+				Preset.isBlank(payload.name) ? "Imported" : payload.name,
+				new TreeMap<String, String>(payload.binds),
 				payload.mc);
 		return preset.sanitise();
 	}

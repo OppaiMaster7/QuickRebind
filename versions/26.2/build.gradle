@@ -14,6 +14,8 @@ repositories {
 	// for more information about repositories.
 }
 
+base.archivesName = "quickrebind-${project.minecraft_version}"
+
 loom {
 	splitEnvironmentSourceSets()
 
@@ -24,6 +26,12 @@ loom {
 		}
 	}
 }
+
+// The version-independent half of the mod. Shared as a source directory rather
+// than a project dependency: every version build compiles the same files, and
+// nothing has to be bundled or remapped. It is plain Java 8 with only Gson, so
+// it compiles unchanged from 1.8.9 up.
+sourceSets.client.java.srcDir file("$rootDir/../../core/src/main/java")
 
 dependencies {
 	// To change the versions see the gradle.properties file

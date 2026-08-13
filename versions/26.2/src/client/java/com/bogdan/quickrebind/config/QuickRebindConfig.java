@@ -1,6 +1,6 @@
 package com.bogdan.quickrebind.config;
 
-import com.bogdan.quickrebind.keys.MissingBindPolicy;
+import com.bogdan.quickrebind.core.MissingBindPolicy;
 
 /**
  * Settings. Lives in the shared folder next to the presets, so it follows you

@@ -1,4 +1,4 @@
-package com.bogdan.quickrebind.storage;
+package com.bogdan.quickrebind.core;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -12,7 +12,9 @@ import java.util.Locale;
  * launched from a different launcher five minutes later, so everything lives in
  * one per-user folder outside any game directory. That also means every
  * Minecraft account on the machine shares the same presets, since the folder
- * belongs to the OS user, not the game.
+ * belongs to the OS user, not the game — and every Minecraft <em>version</em>
+ * shares them too, which is what makes the 1.8.9 and 26.2 builds talk to each
+ * other.
  *
  * <p>Override with {@code -Dquickrebind.dir=...} or the {@code QUICKREBIND_DIR}
  * environment variable — useful if you keep the folder on a synced drive.
@@ -82,6 +84,6 @@ public final class SharedPaths {
 	}
 
 	private static boolean isUsable(String value) {
-		return value != null && !value.isBlank();
+		return value != null && !value.trim().isEmpty();
 	}
 }
