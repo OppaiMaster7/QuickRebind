@@ -321,7 +321,9 @@ public class QuickRebindScreen extends Screen {
 	private void openFolder() {
 		try {
 			Files.createDirectories(SharedPaths.presets());
-			Util.getPlatform().openPath(SharedPaths.presets());
+			// openFile rather than openPath: the Path overload only exists from
+			// 1.21 on, and this one is present in every version we target.
+			Util.getPlatform().openFile(SharedPaths.presets().toFile());
 		} catch (IOException e) {
 			QuickRebindClient.LOGGER.error("Could not open the presets folder", e);
 			setStatus(Component.translatable("quickrebind.status.folder_failed"),

@@ -72,13 +72,29 @@ version and they all read the same folder.
 
 The jar itself is per-version, because Fabric mods always are.
 
-| Minecraft | Status | Loom | Gradle | JDK |
-|---|---|---|---|---|
-| 26.2   | built | 1.17-SNAPSHOT | 9.5.1 | 25 |
-| 1.21.1 | built | 1.9.2 | 8.11.1 | 21 |
-| 1.20.1 | planned | | | 17 |
-| 1.19.2 | planned | | | 17 |
-| 1.8.9  | planned, see below | Legacy Fabric | | 8 |
+| Minecraft | Status | Loom | Gradle | Build JDK | Targets |
+|---|---|---|---|---|---|
+| 26.2   | built | 1.17-SNAPSHOT | 9.5.1 | 25 | 25 |
+| 1.21.1 | built | 1.9.2 | 8.11.1 | 21 | 21 |
+| 1.20.1 | built | 1.9.2 | 8.11.1 | 21 | 17 |
+| 1.19.2 | built | 1.9.2 | 8.11.1 | 21 | 17 |
+| 1.8.9  | planned, see below | Legacy Fabric | | | 8 |
+
+What actually differs between those four builds is smaller than it looks. The
+keybind half is identical from 1.19.2 up — `getName`, `saveString`, `setKey`,
+`getDefaultKey`, `releaseAll`, `resetMapping` have not moved — so
+`KeyMappingHandle` and `GameBinds` are the same file everywhere. It is only the
+GUI that shifts:
+
+- **1.21.1 → 1.20.1** is one import. The controls screens sit in
+  `screens.options.controls` from 1.21 and plain `screens.controls` before it.
+- **1.20.1 → 1.19.2** is a real port: no `GuiGraphics` (rendering takes a
+  `PoseStack`, and the background is yours to draw), no `Button.builder`, and no
+  `Tooltip` class — buttons carry a `Button.OnTooltip` instead. Cycle-button
+  hover hints are dropped on 1.19.2 rather than reimplemented.
+- **1.21.1 → 26.2** is the largest jump: `GuiGraphicsExtractor` and an
+  extract/submit pipeline, `Gui.setScreen`, `KeyEvent` objects, typed keybind
+  categories, and `net.minecraft.util.Util`.
 
 The toolchain differs per version and isn't a free choice. 26.2 ships
 unobfuscated, and the Loom that builds it refuses Mojang mappings outright
@@ -144,13 +160,15 @@ from the table above:
 # 26.2 — JDK 25
 ./gradlew -p versions/26.2 build
 
-# 1.21.1 — JDK 21
+# 1.21.1, 1.20.1, 1.19.2 — JDK 21
 versions/1.21.1/gradlew -p versions/1.21.1 build \
   -Dorg.gradle.java.home=/path/to/jdk-21
 ```
 
 Drop the `-Dorg.gradle.java.home` if `JAVA_HOME` already points at the right
 JDK. Jars land in `versions/<version>/build/libs/`.
+
+To launch a dev client for testing, swap `build` for `runClient`.
 
 ## License
 

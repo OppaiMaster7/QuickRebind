@@ -1,0 +1,24 @@
+{
+	"schemaVersion": 1,
+	"id": "quickrebind",
+	"version": "${version}",
+	"name": "QuickRebind",
+	"description": "Save your keybinds as presets and swap between them in two clicks. Presets live outside the instance folder, so the same set follows you into every modpack, launcher, Minecraft account and version on the PC.",
+	"authors": [
+		"Bogdan"
+	],
+	"contact": {},
+	"license": "CC0-1.0",
+	"environment": "client",
+	"entrypoints": {
+		"client": [
+			"com.bogdan.quickrebind.QuickRebindClient"
+		]
+	},
+	"depends": {
+		"fabricloader": ">=0.15.0",
+		"minecraft": "~1.20.1",
+		"java": ">=17",
+		"fabric-api": "*"
+	}
+}

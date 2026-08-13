@@ -13,11 +13,10 @@ import com.bogdan.quickrebind.core.PresetStore;
 import com.bogdan.quickrebind.core.ShareCode;
 import com.bogdan.quickrebind.core.SharedPaths;
 import com.bogdan.quickrebind.platform.GameBinds;
+import com.mojang.blaze3d.vertex.PoseStack;
 
 import net.minecraft.Util;
-import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.ConfirmScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -51,6 +50,14 @@ public class QuickRebindScreen extends Screen {
 		this.parent = parent;
 	}
 
+	/**
+	 * Hover text. There is no Tooltip class before 1.19.4, so buttons carry an
+	 * OnTooltip that draws through the screen instead.
+	 */
+	private Button.OnTooltip tip(Component text) {
+		return (button, pose, mouseX, mouseY) -> renderTooltip(pose, text, mouseX, mouseY);
+	}
+
 	@Override
 	protected void init() {
 		presets = PresetStore.list();
@@ -72,79 +79,61 @@ public class QuickRebindScreen extends Screen {
 		if (pageCount() > 1) {
 			int navY = LIST_TOP + rowsPerPage * ROW_HEIGHT;
 
-			addRenderableWidget(Button.builder(Component.literal("<"), b -> flipPage(-1))
-					.bounds(left, navY, 20, 20).build());
-			addRenderableWidget(Button.builder(Component.literal(">"), b -> flipPage(1))
-					.bounds(left + LIST_WIDTH - 20, navY, 20, 20).build());
+			addRenderableWidget(new Button(left, navY, 20, 20,
+					Component.literal("<"), b -> flipPage(-1)));
+			addRenderableWidget(new Button(left + LIST_WIDTH - 20, navY, 20, 20,
+					Component.literal(">"), b -> flipPage(1)));
 		}
 
 		addFooter(left);
 	}
 
 	private void addRow(Preset preset, int left, int y) {
-		addRenderableWidget(Button.builder(rowLabel(preset), b -> requestApply(preset))
-				.bounds(left, y, APPLY_WIDTH, 20)
-				.tooltip(Tooltip.create(Component.translatable("quickrebind.tip.apply", preset.name)))
-				.build());
+		addRenderableWidget(new Button(left, y, APPLY_WIDTH, 20,
+				rowLabel(preset), b -> requestApply(preset),
+				tip(Component.translatable("quickrebind.tip.apply", preset.name))));
 
-		addRenderableWidget(Button.builder(
-				Component.translatable("quickrebind.button.rename"), b -> rename(preset))
-				.bounds(left + APPLY_WIDTH + 4, y, SMALL_WIDTH, 20)
-				.tooltip(Tooltip.create(Component.translatable("quickrebind.tip.rename")))
-				.build());
+		addRenderableWidget(new Button(left + APPLY_WIDTH + 4, y, SMALL_WIDTH, 20,
+				Component.translatable("quickrebind.button.rename"), b -> rename(preset),
+				tip(Component.translatable("quickrebind.tip.rename"))));
 
-		addRenderableWidget(Button.builder(
-				Component.translatable("quickrebind.button.copy"), b -> copyCode(preset))
-				.bounds(left + APPLY_WIDTH + 4 + SMALL_WIDTH + 4, y, SMALL_WIDTH, 20)
-				.tooltip(Tooltip.create(Component.translatable("quickrebind.tip.copy")))
-				.build());
+		addRenderableWidget(new Button(left + APPLY_WIDTH + 4 + SMALL_WIDTH + 4, y, SMALL_WIDTH, 20,
+				Component.translatable("quickrebind.button.copy"), b -> copyCode(preset),
+				tip(Component.translatable("quickrebind.tip.copy"))));
 
-		addRenderableWidget(Button.builder(
-				Component.translatable("quickrebind.button.delete"), b -> confirmDelete(preset))
-				.bounds(left + APPLY_WIDTH + 4 + (SMALL_WIDTH + 4) * 2, y, SMALL_WIDTH, 20)
-				.tooltip(Tooltip.create(Component.translatable("quickrebind.tip.delete")))
-				.build());
+		addRenderableWidget(new Button(left + APPLY_WIDTH + 4 + (SMALL_WIDTH + 4) * 2, y, SMALL_WIDTH, 20,
+				Component.translatable("quickrebind.button.delete"), b -> confirmDelete(preset),
+				tip(Component.translatable("quickrebind.tip.delete"))));
 	}
 
 	private void addFooter(int left) {
 		int topRow = height - 52;
 		int bottomRow = height - 28;
 
-		addRenderableWidget(Button.builder(
-				Component.translatable("quickrebind.button.save_current"), b -> saveCurrent())
-				.bounds(left, topRow, 152, 20)
-				.tooltip(Tooltip.create(Component.translatable("quickrebind.tip.save_current")))
-				.build());
+		addRenderableWidget(new Button(left, topRow, 152, 20,
+				Component.translatable("quickrebind.button.save_current"), b -> saveCurrent(),
+				tip(Component.translatable("quickrebind.tip.save_current"))));
 
-		addRenderableWidget(Button.builder(
-				Component.translatable("quickrebind.button.paste"), b -> pasteCode())
-				.bounds(left + 158, topRow, 152, 20)
-				.tooltip(Tooltip.create(Component.translatable("quickrebind.tip.paste")))
-				.build());
+		addRenderableWidget(new Button(left + 158, topRow, 152, 20,
+				Component.translatable("quickrebind.button.paste"), b -> pasteCode(),
+				tip(Component.translatable("quickrebind.tip.paste"))));
 
-		Button undo = Button.builder(Component.translatable("quickrebind.button.undo"), b -> undo())
-				.bounds(left, bottomRow, 74, 20)
-				.tooltip(Tooltip.create(Component.translatable("quickrebind.tip.undo")))
-				.build();
+		Button undo = new Button(left, bottomRow, 74, 20,
+				Component.translatable("quickrebind.button.undo"), b -> undo(),
+				tip(Component.translatable("quickrebind.tip.undo")));
 		undo.active = GameBinds.undoSnapshot() != null;
 		addRenderableWidget(undo);
 
-		addRenderableWidget(Button.builder(
-				Component.translatable("quickrebind.button.folder"), b -> openFolder())
-				.bounds(left + 78, bottomRow, 74, 20)
-				.tooltip(Tooltip.create(Component.translatable("quickrebind.tip.folder",
-						SharedPaths.presets().toString())))
-				.build());
+		addRenderableWidget(new Button(left + 78, bottomRow, 74, 20,
+				Component.translatable("quickrebind.button.folder"), b -> openFolder(),
+				tip(Component.translatable("quickrebind.tip.folder", SharedPaths.presets().toString()))));
 
-		addRenderableWidget(Button.builder(
+		addRenderableWidget(new Button(left + 156, bottomRow, 74, 20,
 				Component.translatable("quickrebind.button.settings"),
-				b -> minecraft.setScreen(new QuickRebindSettingsScreen(this)))
-				.bounds(left + 156, bottomRow, 74, 20)
-				.build());
+				b -> minecraft.setScreen(new QuickRebindSettingsScreen(this))));
 
-		addRenderableWidget(Button.builder(Component.translatable("gui.done"), b -> onClose())
-				.bounds(left + 234, bottomRow, 76, 20)
-				.build());
+		addRenderableWidget(new Button(left + 234, bottomRow, 76, 20,
+				Component.translatable("gui.done"), b -> onClose()));
 	}
 
 	private Component rowLabel(Preset preset) {
@@ -336,10 +325,12 @@ public class QuickRebindScreen extends Screen {
 	// --------------------------------------------------------------- rendering
 
 	@Override
-	public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-		super.render(graphics, mouseX, mouseY, partialTick);
+	public void render(PoseStack pose, int mouseX, int mouseY, float partialTick) {
+		// Pre-GuiGraphics: the background is ours to draw.
+		renderBackground(pose);
+		super.render(pose, mouseX, mouseY, partialTick);
 
-		graphics.drawCenteredString(font, title, width / 2, 12, WHITE);
+		drawCenteredString(pose, font, title, width / 2, 12, WHITE);
 
 		int conflicts = GameBinds.conflicts(minecraft.options);
 		Component subtitle = conflicts > 0
@@ -347,24 +338,24 @@ public class QuickRebindScreen extends Screen {
 						minecraft.options.keyMappings.length, conflicts)
 				: Component.translatable("quickrebind.screen.subtitle",
 						minecraft.options.keyMappings.length);
-		graphics.drawCenteredString(font, subtitle, width / 2, 26, conflicts > 0 ? YELLOW : GREY);
+		drawCenteredString(pose, font, subtitle, width / 2, 26, conflicts > 0 ? YELLOW : GREY);
 
 		if (presets.isEmpty()) {
-			graphics.drawCenteredString(font, Component.translatable("quickrebind.screen.empty"),
+			drawCenteredString(pose, font, Component.translatable("quickrebind.screen.empty"),
 					width / 2, LIST_TOP + 12, GREY);
-			graphics.drawCenteredString(font, Component.translatable("quickrebind.screen.empty_hint"),
+			drawCenteredString(pose, font, Component.translatable("quickrebind.screen.empty_hint"),
 					width / 2, LIST_TOP + 26, GREY);
 		} else if (pageCount() > 1) {
-			graphics.drawCenteredString(font,
+			drawCenteredString(pose, font,
 					Component.translatable("quickrebind.screen.page", page + 1, pageCount()),
 					width / 2, LIST_TOP + rowsPerPage * ROW_HEIGHT + 6, GREY);
 		}
 
 		if (status != null) {
-			graphics.drawCenteredString(font, status, width / 2, height - 76, statusColor);
+			drawCenteredString(pose, font, status, width / 2, height - 76, statusColor);
 
 			if (statusDetail != null) {
-				graphics.drawCenteredString(font, statusDetail, width / 2, height - 66, GREY);
+				drawCenteredString(pose, font, statusDetail, width / 2, height - 66, GREY);
 			}
 		}
 	}
