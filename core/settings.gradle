@@ -1,0 +1,5 @@
+// core is its own build for the same reason each version is: it can't be a
+// subproject of any of them, since they all consume it and none of them owns
+// it. Nothing here needs Loom or Minecraft, so this is a plain Java build and
+// runs in seconds.
+rootProject.name = 'quickrebind-core'

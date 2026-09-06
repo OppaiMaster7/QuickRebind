@@ -7,6 +7,7 @@ import java.util.function.Function;
 
 import com.bogdan.quickrebind.QuickRebindClient;
 import com.bogdan.quickrebind.config.QuickRebindConfig;
+import com.bogdan.quickrebind.core.InstanceConfig;
 import com.bogdan.quickrebind.core.MissingBindPolicy;
 import com.bogdan.quickrebind.core.Preset;
 import com.bogdan.quickrebind.core.PresetStore;
@@ -35,28 +36,47 @@ public class QuickRebindSettingsScreen extends Screen {
 
 		option(0, "quickrebind.option.missing_policy", config.missingBindPolicy,
 				List.of(MissingBindPolicy.values()), QuickRebindSettingsScreen::policyLabel,
-				value -> config.missingBindPolicy = value,
+				value -> {
+					config.missingBindPolicy = value;
+					QuickRebindClient.saveConfig();
+				},
 				"quickrebind.option.missing_policy.tip");
 
 		toggle(1, "quickrebind.option.confirm", config.confirmBeforeApply,
-				value -> config.confirmBeforeApply = value,
+				value -> {
+					config.confirmBeforeApply = value;
+					QuickRebindClient.saveConfig();
+				},
 				"quickrebind.option.confirm.tip");
 
-		autoApplyOption(2, config);
+		autoApplyOption(2);
 
 		toggle(3, "quickrebind.option.button_keybinds", config.buttonInKeyBinds,
-				value -> config.buttonInKeyBinds = value, null);
+				value -> {
+					config.buttonInKeyBinds = value;
+					QuickRebindClient.saveConfig();
+				}, null);
 
 		toggle(4, "quickrebind.option.button_controls", config.buttonInControls,
-				value -> config.buttonInControls = value, null);
+				value -> {
+					config.buttonInControls = value;
+					QuickRebindClient.saveConfig();
+				}, null);
 
 		addRenderableWidget(Button.builder(Component.translatable("gui.done"), b -> onClose())
 				.bounds(width / 2 - 75, height - 28, BUTTON_WIDTH, BUTTON_HEIGHT)
 				.build());
 	}
 
-	/** Cycles through "off" plus every saved preset. */
-	private void autoApplyOption(int slot, QuickRebindConfig config) {
+	/**
+	 * Cycles through "off" plus every saved preset.
+	 *
+	 * <p>This one is stored per install rather than in the shared config, which
+	 * is the only way the setting means anything: the whole reason to want a
+	 * launch preset is that this instance needs different keys from the one next
+	 * to it, and a shared value can only ever hold one answer.
+	 */
+	private void autoApplyOption(int slot) {
 		List<String> ids = new ArrayList<>();
 		ids.add("");
 
@@ -66,13 +86,17 @@ public class QuickRebindSettingsScreen extends Screen {
 			ids.add(preset.id);
 		}
 
-		String current = ids.contains(config.autoApplyPresetId) ? config.autoApplyPresetId : "";
+		InstanceConfig instance = QuickRebindClient.instance();
+		String current = ids.contains(instance.autoApplyPresetId) ? instance.autoApplyPresetId : "";
 
 		option(slot, "quickrebind.option.auto_apply", current, ids,
 				id -> id.isEmpty()
 						? Component.translatable("quickrebind.option.auto_apply.off")
 						: Component.literal(nameOf(presets, id)),
-				value -> config.autoApplyPresetId = value,
+				value -> {
+					instance.autoApplyPresetId = value;
+					QuickRebindClient.saveInstance();
+				},
 				"quickrebind.option.auto_apply.tip");
 	}
 
@@ -104,10 +128,7 @@ public class QuickRebindSettingsScreen extends Screen {
 				.withInitialValue(current)
 				.create(width / 2 - BUTTON_WIDTH, slotY(slot), BUTTON_WIDTH * 2, BUTTON_HEIGHT,
 						Component.translatable(key),
-						(widget, value) -> {
-							setter.accept(value);
-							QuickRebindClient.saveConfig();
-						});
+						(widget, value) -> setter.accept(value));
 
 		if (tipKey != null) {
 			button.setTooltip(Tooltip.create(Component.translatable(tipKey)));
@@ -120,10 +141,7 @@ public class QuickRebindSettingsScreen extends Screen {
 		CycleButton<Boolean> button = CycleButton.onOffBuilder(current)
 				.create(width / 2 - BUTTON_WIDTH, slotY(slot), BUTTON_WIDTH * 2, BUTTON_HEIGHT,
 						Component.translatable(key),
-						(widget, value) -> {
-							setter.accept(value);
-							QuickRebindClient.saveConfig();
-						});
+						(widget, value) -> setter.accept(value));
 
 		if (tipKey != null) {
 			button.setTooltip(Tooltip.create(Component.translatable(tipKey)));
@@ -144,6 +162,7 @@ public class QuickRebindSettingsScreen extends Screen {
 	@Override
 	public void onClose() {
 		QuickRebindClient.saveConfig();
+		QuickRebindClient.saveInstance();
 		minecraft.setScreen(parent);
 	}
 }

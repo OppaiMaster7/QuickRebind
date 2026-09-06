@@ -7,7 +7,11 @@
 	"authors": [
 		"Bogdan"
 	],
-	"contact": {},
+	"contact": {
+		"homepage": "https://github.com/OppaiMaster7/QuickRebind",
+		"sources": "https://github.com/OppaiMaster7/QuickRebind",
+		"issues": "https://github.com/OppaiMaster7/QuickRebind/issues"
+	},
 	"license": "CC0-1.0",
 	"environment": "client",
 	"entrypoints": {

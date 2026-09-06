@@ -1,5 +1,8 @@
 package com.bogdan.quickrebind.core;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -77,6 +80,66 @@ public final class ApplyEngine {
 
 		return new ApplyResult(rebound, alreadyCorrect, resetToDefault, unreadable, notInstalled,
 				conflicts(binds), conflictsBefore);
+	}
+
+	/**
+	 * What {@link #apply} would do, without doing any of it.
+	 *
+	 * <p>Ordered by how much you care: the binds that would actually move come
+	 * first, so the top of the list is the answer to "what is about to happen"
+	 * rather than a hundred lines of things staying put. Ties break on id so the
+	 * order is stable between openings.
+	 */
+	public static List<BindDiff> diff(List<? extends BindHandle> binds, Preset preset, MissingBindPolicy policy) {
+		List<BindDiff> out = new ArrayList<>();
+		Set<String> installed = new HashSet<>();
+
+		for (BindHandle bind : binds) {
+			String id = bind.id();
+			installed.add(id);
+			String wanted = preset.binds.get(id);
+			String current = bind.currentKey();
+
+			if (wanted == null) {
+				boolean resets = policy == MissingBindPolicy.RESET_TO_DEFAULT && !bind.isDefault();
+				out.add(new BindDiff(id, current, resets ? bind.defaultKey() : null,
+						resets ? BindDiff.Status.WOULD_RESET : BindDiff.Status.NOT_IN_PRESET));
+			} else if (wanted.equals(current)) {
+				out.add(new BindDiff(id, current, wanted, BindDiff.Status.UNCHANGED));
+			} else {
+				out.add(new BindDiff(id, current, wanted, BindDiff.Status.CHANGED));
+			}
+		}
+
+		for (Map.Entry<String, String> entry : preset.binds.entrySet()) {
+			if (!installed.contains(entry.getKey())) {
+				out.add(new BindDiff(entry.getKey(), null, entry.getValue(), BindDiff.Status.NOT_INSTALLED));
+			}
+		}
+
+		Collections.sort(out, new Comparator<BindDiff>() {
+			@Override
+			public int compare(BindDiff a, BindDiff b) {
+				int byRank = rank(a.status) - rank(b.status);
+				return byRank != 0 ? byRank : a.id.compareTo(b.id);
+			}
+		});
+		return out;
+	}
+
+	private static int rank(BindDiff.Status status) {
+		switch (status) {
+			case CHANGED:
+				return 0;
+			case WOULD_RESET:
+				return 1;
+			case UNCHANGED:
+				return 2;
+			case NOT_IN_PRESET:
+				return 3;
+			default:
+				return 4;
+		}
 	}
 
 	/**

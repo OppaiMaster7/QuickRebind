@@ -14,6 +14,7 @@ import com.bogdan.quickrebind.core.ShareCode;
 import com.bogdan.quickrebind.core.SharedPaths;
 import com.bogdan.quickrebind.platform.GameBinds;
 
+import net.minecraft.ChatFormatting;
 import net.minecraft.Util;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
@@ -22,13 +23,24 @@ import net.minecraft.client.gui.screens.ConfirmScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
-/** The preset list: apply, rename, share and delete, one row each. */
+/**
+ * The preset list: one row each, apply on the left and everything else behind
+ * Details.
+ *
+ * <p>The row used to carry Apply plus Rename, Share and Delete squeezed into
+ * 42 pixels apiece. Four buttons per row on a screen that can show eight rows
+ * is thirty-two things to aim at, and the three small ones are not what anybody
+ * opened this screen to do. They moved to {@link PresetDetailsScreen}, which
+ * has room to label them properly.
+ */
 public class QuickRebindScreen extends Screen {
 	private static final int ROW_HEIGHT = 24;
 	private static final int LIST_TOP = 46;
-	private static final int LIST_WIDTH = 310;
-	private static final int APPLY_WIDTH = 172;
-	private static final int SMALL_WIDTH = 42;
+	private static final int LIST_WIDTH = 320;
+	private static final int DETAILS_WIDTH = 66;
+	private static final int APPLY_WIDTH = LIST_WIDTH - DETAILS_WIDTH - 4;
+	private static final int FOOTER_WIDTH = 60;
+	private static final int FOOTER_GAP = 5;
 	private static final int MAX_ROWS = 8;
 
 	private static final int WHITE = 0xFFFFFFFF;
@@ -56,7 +68,8 @@ public class QuickRebindScreen extends Screen {
 		presets = PresetStore.list();
 
 		// Reserved below the list, bottom up: two footer rows, two status lines,
-		// and the page nav.
+		// and the page nav. Held back even on a single page so the row count
+		// doesn't change as presets are added.
 		int listBottom = height - 100;
 		rowsPerPage = Math.max(1, Math.min(MAX_ROWS, (listBottom - LIST_TOP) / ROW_HEIGHT));
 		page = Math.max(0, Math.min(page, pageCount() - 1));
@@ -82,56 +95,55 @@ public class QuickRebindScreen extends Screen {
 	}
 
 	private void addRow(Preset preset, int left, int y) {
-		addRenderableWidget(Button.builder(rowLabel(preset), b -> requestApply(preset))
+		boolean active = isActive(preset);
+
+		addRenderableWidget(Button.builder(rowLabel(preset, active), b -> requestApply(preset))
 				.bounds(left, y, APPLY_WIDTH, 20)
-				.tooltip(Tooltip.create(Component.translatable("quickrebind.tip.apply", preset.name)))
+				.tooltip(Tooltip.create(active
+						? Component.translatable("quickrebind.tip.apply_active", preset.name)
+						: Component.translatable("quickrebind.tip.apply", preset.name)))
 				.build());
 
 		addRenderableWidget(Button.builder(
-				Component.translatable("quickrebind.button.rename"), b -> rename(preset))
-				.bounds(left + APPLY_WIDTH + 4, y, SMALL_WIDTH, 20)
-				.tooltip(Tooltip.create(Component.translatable("quickrebind.tip.rename")))
-				.build());
-
-		addRenderableWidget(Button.builder(
-				Component.translatable("quickrebind.button.copy"), b -> copyCode(preset))
-				.bounds(left + APPLY_WIDTH + 4 + SMALL_WIDTH + 4, y, SMALL_WIDTH, 20)
-				.tooltip(Tooltip.create(Component.translatable("quickrebind.tip.copy")))
-				.build());
-
-		addRenderableWidget(Button.builder(
-				Component.translatable("quickrebind.button.delete"), b -> confirmDelete(preset))
-				.bounds(left + APPLY_WIDTH + 4 + (SMALL_WIDTH + 4) * 2, y, SMALL_WIDTH, 20)
-				.tooltip(Tooltip.create(Component.translatable("quickrebind.tip.delete")))
+				Component.translatable("quickrebind.button.details"), b -> openDetails(preset))
+				.bounds(left + APPLY_WIDTH + 4, y, DETAILS_WIDTH, 20)
+				.tooltip(Tooltip.create(Component.translatable("quickrebind.tip.details")))
 				.build());
 	}
 
 	private void addFooter(int left) {
 		int topRow = height - 52;
 		int bottomRow = height - 28;
+		int half = (LIST_WIDTH - 4) / 2;
 
 		addRenderableWidget(Button.builder(
 				Component.translatable("quickrebind.button.save_current"), b -> saveCurrent())
-				.bounds(left, topRow, 152, 20)
+				.bounds(left, topRow, half, 20)
 				.tooltip(Tooltip.create(Component.translatable("quickrebind.tip.save_current")))
 				.build());
 
 		addRenderableWidget(Button.builder(
 				Component.translatable("quickrebind.button.paste"), b -> pasteCode())
-				.bounds(left + 158, topRow, 152, 20)
+				.bounds(left + half + 4, topRow, half, 20)
 				.tooltip(Tooltip.create(Component.translatable("quickrebind.tip.paste")))
 				.build());
 
 		Button undo = Button.builder(Component.translatable("quickrebind.button.undo"), b -> undo())
-				.bounds(left, bottomRow, 74, 20)
+				.bounds(footerX(left, 0), bottomRow, FOOTER_WIDTH, 20)
 				.tooltip(Tooltip.create(Component.translatable("quickrebind.tip.undo")))
 				.build();
 		undo.active = GameBinds.undoSnapshot() != null;
 		addRenderableWidget(undo);
 
 		addRenderableWidget(Button.builder(
+				Component.translatable("quickrebind.button.reset"), b -> confirmReset())
+				.bounds(footerX(left, 1), bottomRow, FOOTER_WIDTH, 20)
+				.tooltip(Tooltip.create(Component.translatable("quickrebind.tip.reset")))
+				.build());
+
+		addRenderableWidget(Button.builder(
 				Component.translatable("quickrebind.button.folder"), b -> openFolder())
-				.bounds(left + 78, bottomRow, 74, 20)
+				.bounds(footerX(left, 2), bottomRow, FOOTER_WIDTH, 20)
 				.tooltip(Tooltip.create(Component.translatable("quickrebind.tip.folder",
 						SharedPaths.presets().toString())))
 				.build());
@@ -139,16 +151,30 @@ public class QuickRebindScreen extends Screen {
 		addRenderableWidget(Button.builder(
 				Component.translatable("quickrebind.button.settings"),
 				b -> minecraft.setScreen(new QuickRebindSettingsScreen(this)))
-				.bounds(left + 156, bottomRow, 74, 20)
+				.bounds(footerX(left, 3), bottomRow, FOOTER_WIDTH, 20)
 				.build());
 
 		addRenderableWidget(Button.builder(Component.translatable("gui.done"), b -> onClose())
-				.bounds(left + 234, bottomRow, 76, 20)
+				.bounds(footerX(left, 4), bottomRow, FOOTER_WIDTH, 20)
 				.build());
 	}
 
-	private Component rowLabel(Preset preset) {
-		return Component.translatable("quickrebind.row.label", preset.name, preset.size());
+	private int footerX(int left, int slot) {
+		return left + slot * (FOOTER_WIDTH + FOOTER_GAP);
+	}
+
+	/** Whether this is the preset this install was last set to. */
+	private boolean isActive(Preset preset) {
+		return preset.id.equals(QuickRebindClient.instance().lastAppliedId);
+	}
+
+	/**
+	 * The active preset is drawn green rather than badged with a marker glyph,
+	 * which keeps it legible in every font the game might be running.
+	 */
+	private Component rowLabel(Preset preset, boolean active) {
+		Component label = Component.translatable("quickrebind.row.label", preset.name, preset.size());
+		return active ? label.copy().withStyle(ChatFormatting.GREEN) : label;
 	}
 
 	private int pageCount() {
@@ -161,6 +187,10 @@ public class QuickRebindScreen extends Screen {
 	}
 
 	// ----------------------------------------------------------------- actions
+
+	private void openDetails(Preset preset) {
+		minecraft.setScreen(new PresetDetailsScreen(this, preset));
+	}
 
 	private void requestApply(Preset preset) {
 		QuickRebindConfig config = QuickRebindClient.config();
@@ -217,47 +247,55 @@ public class QuickRebindScreen extends Screen {
 				Component.translatable("quickrebind.prompt.save.message"),
 				suggested,
 				name -> {
-					Preset preset = Preset.of(name, GameBinds.capture(minecraft.options),
-							QuickRebindClient.gameVersion());
+					// Typing the name of a preset that already exists used to make
+					// a second one with an identical label, and no way to tell the
+					// two apart in the list. Offer the thing that was almost
+					// certainly meant instead.
+					Preset existing = PresetStore.findByName(name, presets);
 
-					if (PresetStore.save(preset)) {
-						setStatus(Component.translatable("quickrebind.status.saved", preset.name, preset.size()),
-								Component.translatable("quickrebind.status.saved_where"), GREEN);
+					if (existing != null) {
+						confirmOverwrite(existing);
+						return;
+					}
+
+					saveNew(name);
+				}));
+	}
+
+	private void saveNew(String name) {
+		Preset preset = Preset.of(name, GameBinds.capture(minecraft.options),
+				QuickRebindClient.gameVersion());
+
+		if (PresetStore.save(preset)) {
+			setStatus(Component.translatable("quickrebind.status.saved", preset.name, preset.size()),
+					Component.translatable("quickrebind.status.saved_where"), GREEN);
+		} else {
+			setStatus(Component.translatable("quickrebind.status.save_failed"), null, RED);
+		}
+
+		rebuildWidgets();
+	}
+
+	private void confirmOverwrite(Preset existing) {
+		minecraft.setScreen(new ConfirmScreen(
+				confirmed -> {
+					minecraft.setScreen(this);
+
+					if (!confirmed) {
+						return;
+					}
+
+					if (PresetStore.updateBinds(existing, GameBinds.capture(minecraft.options))) {
+						setStatus(Component.translatable("quickrebind.status.updated",
+								existing.name, existing.size()), null, GREEN);
 					} else {
 						setStatus(Component.translatable("quickrebind.status.save_failed"), null, RED);
 					}
 
 					rebuildWidgets();
-				}));
-	}
-
-	private void rename(Preset preset) {
-		minecraft.setScreen(new NamePromptScreen(this,
-				Component.translatable("quickrebind.prompt.rename.title"),
-				Component.translatable("quickrebind.prompt.rename.message"),
-				preset.name,
-				name -> {
-					preset.name = name;
-
-					if (PresetStore.save(preset)) {
-						setStatus(Component.translatable("quickrebind.status.renamed", name), null, GREEN);
-					} else {
-						setStatus(Component.translatable("quickrebind.status.save_failed"), null, RED);
-					}
-
-					rebuildWidgets();
-				}));
-	}
-
-	private void copyCode(Preset preset) {
-		minecraft.keyboardHandler.setClipboard(ShareCode.encode(preset));
-
-		// Name the file too: sending the .json is the other way to share, and
-		// otherwise you'd have to guess which one it is in the folder.
-		setStatus(Component.translatable("quickrebind.status.copied", preset.name),
-				Component.translatable("quickrebind.status.copied_hint",
-						preset.fileName == null ? "?" : preset.fileName),
-				GREEN);
+				},
+				Component.translatable("quickrebind.confirm.overwrite.title", existing.name),
+				Component.translatable("quickrebind.confirm.overwrite.message", existing.size())));
 	}
 
 	private void pasteCode() {
@@ -274,29 +312,10 @@ public class QuickRebindScreen extends Screen {
 
 			rebuildWidgets();
 		} catch (IllegalArgumentException e) {
-			// The message is a translation key â€” see ShareCode.decode.
+			// The message is a translation key — see ShareCode.decode.
 			setStatus(Component.translatable("quickrebind.status.import_failed"),
 					Component.translatable(e.getMessage()), RED);
 		}
-	}
-
-	private void confirmDelete(Preset preset) {
-		minecraft.setScreen(new ConfirmScreen(
-				confirmed -> {
-					minecraft.setScreen(this);
-
-					if (confirmed) {
-						if (PresetStore.delete(preset)) {
-							setStatus(Component.translatable("quickrebind.status.deleted", preset.name), null, GREY);
-						} else {
-							setStatus(Component.translatable("quickrebind.status.delete_failed"), null, RED);
-						}
-
-						rebuildWidgets();
-					}
-				},
-				Component.translatable("quickrebind.confirm.delete.title", preset.name),
-				Component.translatable("quickrebind.confirm.delete.message")));
 	}
 
 	private void undo() {
@@ -312,6 +331,26 @@ public class QuickRebindScreen extends Screen {
 		setStatus(Component.translatable("quickrebind.status.undone", result.changed()),
 				Component.translatable("quickrebind.status.undone_hint"), GREEN);
 		rebuildWidgets();
+	}
+
+	/**
+	 * Back to the keys Minecraft ships with. Snapshots first like any other
+	 * apply, so this is as reversible as everything else here.
+	 */
+	private void confirmReset() {
+		minecraft.setScreen(new ConfirmScreen(
+				confirmed -> {
+					minecraft.setScreen(this);
+
+					if (confirmed) {
+						int changed = GameBinds.resetAllToDefault(minecraft);
+						setStatus(Component.translatable("quickrebind.status.reset", changed),
+								Component.translatable("quickrebind.status.reset_hint"), GREY);
+						rebuildWidgets();
+					}
+				},
+				Component.translatable("quickrebind.confirm.reset.title"),
+				Component.translatable("quickrebind.confirm.reset.message")));
 	}
 
 	private void openFolder() {

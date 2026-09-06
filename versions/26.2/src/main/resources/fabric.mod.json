@@ -3,11 +3,15 @@
 	"id": "quickrebind",
 	"version": "${version}",
 	"name": "QuickRebind",
-	"description": "Save your keybinds as presets and swap between them in two clicks. Presets live outside the instance folder, so the same set follows you into every modpack, launcher and Minecraft account on the PC.",
+	"description": "Save your keybinds as presets and swap between them in two clicks. Presets live outside the instance folder, so the same set follows you into every modpack, launcher, Minecraft account and version on the PC.",
 	"authors": [
 		"Bogdan"
 	],
-	"contact": {},
+	"contact": {
+		"homepage": "https://github.com/OppaiMaster7/QuickRebind",
+		"sources": "https://github.com/OppaiMaster7/QuickRebind",
+		"issues": "https://github.com/OppaiMaster7/QuickRebind/issues"
+	},
 	"license": "CC0-1.0",
 	"environment": "client",
 	"entrypoints": {

@@ -22,7 +22,19 @@ import java.util.Locale;
 public final class SharedPaths {
 	private static final String FOLDER = "QuickRebind";
 
+	private static Path instanceDir;
+
 	private SharedPaths() {
+	}
+
+	/**
+	 * Where this particular install keeps its config, told to us at startup.
+	 *
+	 * <p>Core has no way to find the game directory itself, so the platform layer
+	 * hands it over — {@code FabricLoader.getInstance().getConfigDir()}.
+	 */
+	public static void useInstanceDir(Path dir) {
+		instanceDir = dir;
 	}
 
 	public static Path root() {
@@ -63,9 +75,31 @@ public final class SharedPaths {
 		return root().resolve("config.json");
 	}
 
-	/** Snapshot of the binds as they were before the last apply, for the undo button. */
+	/**
+	 * The settings that stay with this install — see {@link InstanceConfig}.
+	 *
+	 * <p>Falls back to the shared folder if nobody called {@link #useInstanceDir},
+	 * which should not happen in a real launch and only keeps the store working
+	 * rather than throwing.
+	 */
+	public static Path instanceConfig() {
+		return instanceDir == null
+				? root().resolve("instance.json")
+				: instanceDir.resolve("quickrebind.json");
+	}
+
+	/**
+	 * Snapshot of the binds as they were before the last apply, for the undo button.
+	 *
+	 * <p>Instance-scoped for the same reason auto-apply is: it records what
+	 * <em>this</em> install looked like a moment ago. A snapshot taken in your PvP
+	 * instance has nothing to say about the modpack you opened afterwards, and
+	 * restoring it there would undo a change that install never made.
+	 */
 	public static Path undo() {
-		return root().resolve("undo.json");
+		return instanceDir == null
+				? root().resolve("undo.json")
+				: instanceDir.resolve("quickrebind-undo.json");
 	}
 
 	private static Path override() {

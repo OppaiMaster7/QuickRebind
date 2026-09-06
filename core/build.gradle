@@ -1,0 +1,39 @@
+plugins {
+	id 'java'
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	// The only thing core is allowed to depend on. Minecraft ships Gson on
+	// every version we target, which is why it can be used here at all.
+	implementation 'com.google.code.gson:gson:2.10.1'
+
+	testImplementation platform('org.junit:junit-bom:5.11.4')
+	testImplementation 'org.junit.jupiter:junit-jupiter'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+// Core is deliberately Java 8 so the planned 1.8.9 build can use it unchanged.
+// Compiling it at 8 here is what stops a stray lambda-with-var or a Java 9+ API
+// call from sneaking in months before that build exists to catch it.
+compileJava {
+	options.release = 8
+	options.compilerArgs << '-Xlint:-options'
+}
+
+// The tests themselves are never shipped, so they get the modern language.
+compileTestJava {
+	options.release = 21
+}
+
+test {
+	useJUnitPlatform()
+
+	testLogging {
+		events 'passed', 'skipped', 'failed'
+		exceptionFormat = 'full'
+	}
+}

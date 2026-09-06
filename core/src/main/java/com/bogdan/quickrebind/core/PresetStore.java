@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.TreeMap;
 
 /**
  * Reads and writes preset files in the shared folder.
@@ -81,6 +82,65 @@ public final class PresetStore {
 		}
 
 		return null;
+	}
+
+	/** The preset going by {@code name}, ignoring case, or null if nobody is. */
+	public static Preset findByName(String name, List<Preset> existing) {
+		if (Preset.isBlank(name)) {
+			return null;
+		}
+
+		String wanted = name.trim();
+
+		for (Preset preset : existing) {
+			if (preset.name.equalsIgnoreCase(wanted)) {
+				return preset;
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * Replaces a preset's binds with a fresh capture, in place.
+	 *
+	 * <p>The id, the file and the creation date all survive, which is what makes
+	 * this an edit rather than "save a new one and delete the old one": anything
+	 * pointing at this preset by id — auto-apply, the last-applied marker — keeps
+	 * pointing at it.
+	 */
+	public static boolean updateBinds(Preset preset, Map<String, String> binds) {
+		preset.binds = new TreeMap<String, String>(binds);
+		return save(preset);
+	}
+
+	/**
+	 * The preset {@code direction} places along from {@code currentId}, wrapping.
+	 *
+	 * <p>Drives the quick-switch key. An unknown or blank current id starts at
+	 * the top of the list, so the first press after a fresh launch is predictable
+	 * rather than arbitrary.
+	 */
+	public static Preset cycle(List<Preset> presets, String currentId, int direction) {
+		if (presets.isEmpty()) {
+			return null;
+		}
+
+		int current = -1;
+
+		for (int index = 0; index < presets.size(); index++) {
+			if (presets.get(index).id.equals(currentId)) {
+				current = index;
+				break;
+			}
+		}
+
+		if (current < 0) {
+			return presets.get(direction >= 0 ? 0 : presets.size() - 1);
+		}
+
+		int size = presets.size();
+		return presets.get(((current + direction) % size + size) % size);
 	}
 
 	/** Writes the preset, moving its file if the name changed. */

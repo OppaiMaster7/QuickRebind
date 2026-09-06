@@ -1,0 +1,23 @@
+# The build matrix, in one place, because six different answers to "which JDK"
+# is exactly the sort of thing that rots in a README. tools/verify.sh and the
+# CI workflow both read this file, so adding a Minecraft version is one line
+# here plus the versions/<v>/ directory itself.
+#
+# minecraft   the version directory under versions/, and what the jar targets
+# build_jdk   major version of the JDK Gradle itself must run on
+# target_java the Java release the classes are compiled to, checked against the
+#             jar afterwards so depends.java can't drift away from reality
+# wrapper     "own" for versions/<v>/gradlew, "root" for the one at the top
+#
+# 26.2 is the odd one out: it ships unobfuscated, and the Loom that can build it
+# refuses Mojang mappings outright, so everything still obfuscated needs an
+# older Loom, an older Gradle and an older JDK. That is also why the Gradle
+# wrapper lives per version directory — each Loom pins its own minimum.
+#
+# minecraft	build_jdk	target_java	wrapper
+26.2	25	25	root
+1.21.11	21	21	own
+1.21.8	21	21	own
+1.21.1	21	21	own
+1.20.1	21	17	own
+1.19.2	21	17	own

@@ -12,6 +12,10 @@ buildscript {
 	}
 }
 
+plugins {
+	id 'com.modrinth.minotaur' version '2.9.0'
+}
+
 apply plugin: 'fabric-loom'
 
 version = project.mod_version
@@ -65,4 +69,54 @@ jar {
 	from("$rootDir/../../LICENSE") {
 		rename { "${it}_quickrebind" }
 	}
+}
+
+// Passing -Pquickrebind.selftest=<file> turns `runClient` into an unattended
+// test run: the mod checks itself against this version's real keybinds, writes
+// the report to <file> and halts, so the one thing that genuinely needs a
+// running game doesn't need a person as well. -Pquickrebind.dir points the
+// preset folder at a sandbox so a test can't touch the ones you actually use.
+// Driven by tools/verify.sh --selftest.
+tasks.matching { it.name == 'runClient' }.configureEach {
+	if (project.hasProperty('quickrebind.selftest')) {
+		jvmArgs "-Dquickrebind.selftest=${project.property('quickrebind.selftest')}"
+	}
+
+	if (project.hasProperty('quickrebind.dir')) {
+		jvmArgs "-Dquickrebind.dir=${project.property('quickrebind.dir')}"
+	}
+}
+
+// Publishing to Modrinth. Never runs as part of `build` — it is the `modrinth`
+// task, driven by tools/publish.sh, and it needs MODRINTH_TOKEN in the
+// environment. The version number carries the Minecraft version because this
+// project ships one jar per version and Modrinth wants them distinguishable.
+modrinth {
+	token = System.getenv('MODRINTH_TOKEN') ?: ''
+	projectId = 'quickrebind'
+	versionNumber = "${project.mod_version}+${project.minecraft_version}"
+	versionName = "QuickRebind ${project.mod_version} for Minecraft ${project.minecraft_version}"
+	versionType = 'release'
+	gameVersions = [project.minecraft_version]
+	loaders = ['fabric']
+
+	dependencies {
+		required.project 'fabric-api'
+	}
+
+	def notes = file("$rootDir/../../CHANGELOG.md")
+	changelog = notes.exists() ? notes.text : ''
+}
+
+// Resolved after evaluation: reading the task while the block above is being
+// read fails with "unknown property 'remapJar'".
+afterEvaluate {
+	// remapJar, not jar: on an obfuscated Minecraft the plain jar still carries
+	// Mojang names, and Loom remaps them to the intermediary names the game
+	// actually runs with.
+	//
+	// Except on 26.2, which ships unobfuscated. There is nothing to remap, so
+	// that Loom registers no remapJar at all and `jar` is the artifact to ship —
+	// which is why this asks rather than assuming.
+	modrinth.uploadFile = tasks.findByName('remapJar') ?: tasks.jar
 }

@@ -7,6 +7,7 @@ import java.util.Map;
 import com.bogdan.quickrebind.QuickRebindClient;
 import com.bogdan.quickrebind.core.ApplyEngine;
 import com.bogdan.quickrebind.core.ApplyResult;
+import com.bogdan.quickrebind.core.BindDiff;
 import com.bogdan.quickrebind.core.BindHandle;
 import com.bogdan.quickrebind.core.JsonStore;
 import com.bogdan.quickrebind.core.MissingBindPolicy;
@@ -45,11 +46,23 @@ public final class GameBinds {
 		return ApplyEngine.conflicts(handles(options));
 	}
 
+	/** What applying {@code preset} here would change, without changing it. */
+	public static List<BindDiff> diff(Options options, Preset preset, MissingBindPolicy policy) {
+		return ApplyEngine.diff(handles(options), preset, policy);
+	}
+
 	/**
 	 * Writes {@code preset} into the live keybinds and saves options.txt.
 	 *
 	 * <p>Always snapshots the current binds to the undo file first, so a wrong
 	 * click is one button away from being reversed.
+	 *
+	 * <p>Every route into applying a preset comes through here — the list, the
+	 * details screen, auto-apply, the switch key — so this is also where the
+	 * "which preset am I on" marker gets written, rather than at five call sites
+	 * that each have to remember. Undo passes its synthetic snapshot through the
+	 * same door: that preset isn't in the store, so the marker stops matching
+	 * anything and the list correctly shows you are on none of them.
 	 */
 	public static ApplyResult apply(Minecraft minecraft, Preset preset, MissingBindPolicy policy) {
 		Options options = minecraft.options;
@@ -62,6 +75,11 @@ public final class GameBinds {
 
 		KeyMapping.resetMapping();
 		options.save();
+		QuickRebindClient.markApplied(preset.id);
+
+		// The quick-switch key works from the Key Binds screen, so that screen
+		// can be the one on display while its keys move underneath it.
+		ControlsRefresh.refresh(minecraft.gui.screen());
 
 		QuickRebindClient.LOGGER.info("Applied preset '{}': {}", preset.name, result);
 		return result;
@@ -76,6 +94,11 @@ public final class GameBinds {
 
 		KeyMapping.resetMapping();
 		options.save();
+		ControlsRefresh.refresh(minecraft.gui.screen());
+		// Vanilla defaults are not one of your presets.
+		QuickRebindClient.markApplied("");
+
+		QuickRebindClient.LOGGER.info("Reset {} binds to default", changed);
 		return changed;
 	}
 

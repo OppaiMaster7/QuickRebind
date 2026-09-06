@@ -30,8 +30,16 @@ public final class MenuButtons {
 			// open, so the open key does nothing on the title screen or in any
 			// menu unless it is also handled per-screen like this.
 			ScreenKeyboardEvents.afterKeyPress(screen).register((pressedOn, event) -> {
-				if (!isOurs(pressedOn) && QuickRebindClient.openKeyMatches(event)) {
+				if (isOurs(pressedOn)) {
+					return;
+				}
+
+				if (QuickRebindClient.openKeyMatches(event)) {
 					client.gui.setScreen(new QuickRebindScreen(pressedOn));
+				} else if (QuickRebindClient.cycleKeyMatches(event)) {
+					// Worth having here as well as in-world: the controls screen
+					// is exactly where you want to watch the binds change.
+					QuickRebindClient.cycleToNext(client);
 				}
 			});
 
@@ -58,6 +66,7 @@ public final class MenuButtons {
 	private static boolean isOurs(Screen screen) {
 		return screen instanceof QuickRebindScreen
 				|| screen instanceof QuickRebindSettingsScreen
+				|| screen instanceof PresetDetailsScreen
 				|| screen instanceof NamePromptScreen;
 	}
 
